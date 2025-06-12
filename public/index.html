@@ -13,50 +13,120 @@
     	<h1>DAQ Measurement Readings</h1>
     </header>
 
-	<p id="description">Hello World!</p>
+	<p id="description">Placeholder</p>
 
     <div id="gaugeContainer">
         <div class="gaugeBlock">
         	<canvas id="gauge1"></canvas>
-            <p id="label1">Measurement1: 0</p>
+            <p id="label1">Temperature: 0.00 C</p>
         </div>
 
         <div class="gaugeBlock">
             <canvas id="gauge2"></canvas>
-            <p id="label2">Measurement2: 0</p>
+            <p id="label2">Voltage: 0.00 V</p>
         </div>
 
         <div class="gaugeBlock">
             <canvas id="gauge3"></canvas>
-            <p id="label3">Measurement3: 0</p>
+            <p id="label3">Measurement 3: 0.00</p>
         </div>
     </div>
+
+    <p id="sensorStatus">Sensor Status: Checking...</p>
+
+    <div class="port-selector-wrapper">
+        <label for="portSelector">Select Port:</label>
+        <select id="portSelector"></select>
+    </div>
+
+    <button id="connectBtn">Connect</button>
 
     <script>
         var socket = io("http://localhost:3000");
 
+        // Fetch and populate available ports
+        let currentPorts = [];
+
+        function updatePortSelector() {
+          fetch("/ports")
+            .then(res => res.json())
+            .then(ports => {
+              const selector = document.getElementById("portSelector");
+
+              // Save current selection
+              const currentSelection = selector.value;
+
+              // Clear existing options
+              selector.innerHTML = "";
+
+              if (ports.length === 0) {
+                const option = document.createElement("option");
+                option.disabled = true;
+                option.textContent = "No ports available";
+                selector.appendChild(option);
+              } else {
+                ports.forEach(port => {
+                  const option = document.createElement("option");
+                  option.value = port;
+                  option.textContent = port;
+                  selector.appendChild(option);
+                });
+
+                // Try to restore previous selection
+                if (ports.includes(currentSelection)) {
+                  selector.value = currentSelection;
+                }
+              }
+            })
+            .catch(err => {
+              console.error("Error fetching ports:", err);
+            });
+        }
+
+        // Initial and periodic refresh
+        document.addEventListener("DOMContentLoaded", () => {
+          updatePortSelector();
+          setInterval(updatePortSelector, 3000); // check every 3 seconds
+        });
+
+        socket.on("connect", () => console.log("Socket connected"));
+        socket.on("disconnect", () => console.log("Socket disconnected"));
+        socket.on("connect_error", (err) => console.error("Connection error:", err));
+
+        document.getElementById("connectBtn").addEventListener("click", () => {
+          const selectedPort = document.getElementById("portSelector").value;
+          socket.emit("createPort", selectedPort);
+        });
+
+        // Gauge options
         var opts = {
             angle: 0, // Set angle to 0
             lineWidth: 0.2,
             radiusScale: 1,
             limitMax: false,
             limitMin: false,
+            highDpiSupport: true,
             staticLabels: {
-                font: "10px sans-serif",  // Specifies font
-                labels: [0, 20, 40, 60, 80, 100],  // Print labels at these values
-                color: "#000000",  // Optional: Label text color
-                fractionDigits: 0  // Optional: Numerical precision. 0=round off.
+                font: "10px sans-serif",
+                labels: [0, 20, 40, 60, 80, 100],
+                color: "#000000",
+                fractionDigits: 0
+            },
+            pointer: {
+                length: 0.6, // Relative to gauge radius
+                strokeWidth: 0.025, // Thickness
+                color: '#000000'
             },
             renderTicks: {
                 divisions: 5,
                 divWidth: 1,
                 divLength: 0.7,
-                divColor: '#115919',
+                divColor: '#666666',
                 subDivisions: 4,
                 subLength: 0.5,
                 subWidth: 0.6,
                 subColor: '#666666'
-            }
+            },
         };
 
         // Initialize gauges
@@ -73,19 +143,41 @@
         gauge3.set(15);
         gauge3.options
 
+        var sensorStatus = document.getElementById("sensorStatus");
+
         // Listen for real-time DAQ data
         socket.on("daqData", (data) => {
-            gauge1.set(data.measurement1);
-            gauge2.set(data.measurement2);
+            gauge1.set(data.temperature);
+            gauge2.set(data.voltage);
             gauge3.set(data.measurement3);
 
-            document.getElementById("label1").innerText = "Measurement1: " + data.measurement1.toFixed(2);
-            document.getElementById("label2").innerText = "Measurement2: " + data.measurement2.toFixed(2);
-            document.getElementById("label3").innerText = "Measurement3: " + data.measurement3.toFixed(2);
+            document.getElementById("label1").innerText = "Temperature: " + data.temperature + " C";
+            document.getElementById("label2").innerText = "Voltage: " + data.voltage + " V";
+            document.getElementById("label3").innerText = "Measurement 3: " + data.measurement3;
+
+            // Update sensor status
+            if (data.sensorConnected) {
+                sensorStatus.innerText = "Sensor Status: Connected";
+                sensorStatus.style.color = "green";
+            } else {
+                sensorStatus.innerText = "Sensor Status: Disconnected";
+                sensorStatus.style.color = "red";
+            }
+
+            // Update connect button
+            const button = document.getElementById("connectBtn");
+
+            if (data.sensorConnected) {
+                button.disabled = true;
+                button.innerText = "Connected";
+            } else {
+                button.disabled = false;
+                button.innerText = "Connect";
+            }
         });
     </script>
 </body>
 <footer>
-    <p>Goodbye World!</p>
+    <p>Placeholder</p>
 </footer>
 </html>

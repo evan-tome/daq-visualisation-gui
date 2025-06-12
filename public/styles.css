@@ -17,17 +17,17 @@ header {
 }
 
 canvas {
-      width: 300px;
-      height: 150px;
+      width: 340px;
+      height: 170px;
 }
 
 #gaugeContainer {
-    display: flex;
-    justify-content: center;
-    gap: 80px;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 150px;
+      display: flex;
+      justify-content: center;
+      gap: 80px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 60px;
 }
 
 #description {
@@ -35,18 +35,87 @@ canvas {
 }
 
 p {
-    font-size: 16px;
-    font-weight: bold;
-    margin-top: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 10px;
 }
 
 footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: #1e3d61;
-    color: white;
-    text-align: center;
-    padding: 10px;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #1e3d61;
+      color: white;
+      text-align: center;
 }
+
+#sensorStatus {
+      margin-top: 40px;
+}
+
+button#connectBtn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: 2px solid #007bff;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.1s ease, color 0.1s ease, border 0.1s ease;
+}
+
+button#connectBtn:hover {
+      background-color: white;
+      color: #007bff;
+}
+
+button#connectBtn:disabled {
+      background-color: #ccc;
+      color: #666;
+      cursor: not-allowed;
+      border: 2px solid #ccc;
+}
+
+.port-selector-wrapper {
+  margin: 20px auto;
+  display: flex;
+  flex-direction: column;
+  max-width: 200px;
+}
+
+.port-selector-wrapper label {
+  font-size: 16px;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+#portSelector {
+  appearance: none;
+  background-color: white;
+  border: 2px solid #007BFF;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 16px;
+  color: #007BFF;
+  font-weight: 500;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  outline: none;
+}
+
+#portSelector:hover {
+  border-color: #0056b3;
+}
+
+#portSelector:focus {
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+#portSelector:disabled {
+  background-color: #eee;
+  color: #999;
+  border-color: #ccc;
+}
+
+
