@@ -32,7 +32,7 @@
         </div>
     </div>
 
-    <p id="sensorStatus">Sensor Status: Checking...</p>
+    <p id="sensorStatus">Status: Checking...</p>
 
     <div class="port-selector-wrapper">
         <label for="portSelector">Select Port:</label>
@@ -86,7 +86,7 @@
         // Initial and periodic refresh
         document.addEventListener("DOMContentLoaded", () => {
           updatePortSelector();
-          setInterval(updatePortSelector, 3000); // check every 3 seconds
+          setInterval(updatePortSelector, 1000); // check every second
         });
 
         socket.on("connect", () => console.log("Socket connected"));
@@ -94,18 +94,25 @@
         socket.on("connect_error", (err) => console.error("Connection error:", err));
 
         document.getElementById("connectBtn").addEventListener("click", () => {
-          const selectedPort = document.getElementById("portSelector").value;
-          socket.emit("createPort", selectedPort);
+            const selectedPort = document.getElementById("portSelector").value;
+            socket.emit("createPort", selectedPort);
+
+            // Reset status while checking connection
+            const sensorStatus = document.getElementById("sensorStatus");
+            sensorStatus.innerText = "Status: Checking...";
+            sensorStatus.style.color = "black";
         });
 
         // Gauge options
         var opts = {
-            angle: 0, // Set angle to 0
+            angle: -0.15,
             lineWidth: 0.2,
             radiusScale: 1,
             limitMax: false,
             limitMin: false,
             highDpiSupport: true,
+            colorStart: '#3CD46E',
+            colorStop: '#59F161',
             staticLabels: {
                 font: "10px sans-serif",
                 labels: [0, 20, 40, 60, 80, 100],
@@ -147,37 +154,38 @@
 
         // Listen for real-time DAQ data
         socket.on("daqData", (data) => {
+            // Update gauge values
             gauge1.set(data.temperature);
             gauge2.set(data.voltage);
             gauge3.set(data.measurement3);
 
-            document.getElementById("label1").innerText = "Temperature: " + data.temperature + " C";
-            document.getElementById("label2").innerText = "Voltage: " + data.voltage + " V";
-            document.getElementById("label3").innerText = "Measurement 3: " + data.measurement3;
+            // Update gauge labels
+            document.getElementById("label1").innerText = `Temperature: ${data.temperature.toFixed(2)} C`;
+            document.getElementById("label2").innerText = `Voltage: ${data.voltage.toFixed(2)} V`;
+            document.getElementById("label3").innerText = `Measurement 3: ${data.measurement3.toFixed(2)}`;
 
             // Update sensor status
-            if (data.sensorConnected) {
-                sensorStatus.innerText = "Sensor Status: Connected";
-                sensorStatus.style.color = "green";
-            } else {
-                sensorStatus.innerText = "Sensor Status: Disconnected";
-                sensorStatus.style.color = "red";
+            const isConnected = data.sensorConnected;
+            const newStatus = isConnected ? "Connected" : "Disconnected";
+            const newColor = isConnected ? "green" : "red";
+
+            // Only update if something changed
+            if (sensorStatus.innerText !== `Status: ${newStatus}`) {
+                sensorStatus.innerText = `Status: ${newStatus}`;
+                sensorStatus.style.color = newColor;
             }
 
-            // Update connect button
-            const button = document.getElementById("connectBtn");
+            // Update connect button state only when needed
+            const connectBtn = document.getElementById("connectBtn");
 
-            if (data.sensorConnected) {
-                button.disabled = true;
-                button.innerText = "Connected";
-            } else {
-                button.disabled = false;
-                button.innerText = "Connect";
+            if (isConnected && !connectBtn.disabled) {
+                connectBtn.disabled = true;
+                connectBtn.innerText = "Connected";
+            } else if (!isConnected && connectBtn.disabled) {
+                connectBtn.disabled = false;
+                connectBtn.innerText = "Connect";
             }
         });
     </script>
 </body>
-<footer>
-    <p>Placeholder</p>
-</footer>
 </html>
