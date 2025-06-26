@@ -2,7 +2,7 @@
 <html>
 <head>
 	<meta charset="UTF-8">
-	<title>Visualisation of Measurements Taken From a DAQ System</title>
+	<title>EV Measurements</title>
 	<script src="https://bernii.github.io/gauge.js/dist/gauge.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
 	<link rel="stylesheet" href="styles.css">
@@ -10,36 +10,38 @@
 
 <body>
     <header>
-    	<h1>DAQ Measurement Readings</h1>
+        <h1>EV Measurements</h1>
     </header>
 
-	<p id="description">Placeholder</p>
+    <div class="control-bar">
+        <div class="port-selector-wrapper">
+            <label for="portSelector">Select Port:</label>
+            <select id="portSelector"></select>
+        </div>
+        <button id="connectBtn">Connect</button>
+        <button id="recordBtn" disabled>⬤</button>
+    </div>
 
     <div id="gaugeContainer">
         <div class="gaugeBlock">
-        	<canvas id="gauge1"></canvas>
-            <p id="label1">Temperature: 0.00 C</p>
+            <canvas id="gauge1"></canvas>
+            <p id="label1"><span class="labelName">Voltage</span><br><span class="labelValue">0 V</span></p>
         </div>
 
         <div class="gaugeBlock">
             <canvas id="gauge2"></canvas>
-            <p id="label2">Voltage: 0.00 V</p>
+            <p id="label2"><span class="labelName">Current</span><br><span class="labelValue">0 A</span></p>
         </div>
 
         <div class="gaugeBlock">
             <canvas id="gauge3"></canvas>
-            <p id="label3">Measurement 3: 0.00</p>
+        <p id="label3"><span class="labelName">Temperature</span><br><span class="labelValue">0 °C</span></p>
         </div>
     </div>
 
-    <p id="sensorStatus">Status: Checking...</p>
-
-    <div class="port-selector-wrapper">
-        <label for="portSelector">Select Port:</label>
-        <select id="portSelector"></select>
-    </div>
-
-    <button id="connectBtn">Connect</button>
+    <p id="sensorStatus">Disconnected</p>
+    <div id="errorMessage">Failed to connect to port.</div>
+    <div id="recordStatusMessage"></div>
 
     <script>
         var socket = io("http://localhost:3000");
@@ -93,39 +95,71 @@
         socket.on("disconnect", () => console.log("Socket disconnected"));
         socket.on("connect_error", (err) => console.error("Connection error:", err));
 
+        // Listen for port connection error from server
+        socket.on("portError", (errorMsg) => {
+            const errorMessage = document.getElementById("errorMessage");
+            errorMessage.innerText = errorMsg || "Failed to connect to port.";
+            
+            // Show and fade out
+            errorMessage.classList.add("show");
+
+            setTimeout(() => {
+              errorMessage.classList.remove("show");
+            }, 2000);
+        });
+
+
         document.getElementById("connectBtn").addEventListener("click", () => {
             const selectedPort = document.getElementById("portSelector").value;
+            const errorMessage = document.getElementById("errorMessage");
+
+            if (!selectedPort || selectedPort === "No ports available") {
+              errorMessage.innerText = "No port selected";
+              errorMessage.classList.add("show");
+
+              setTimeout(() => {
+                errorMessage.classList.remove("show");
+              }, 3000); // Hide after 3 seconds
+
+              return;
+            }
             socket.emit("createPort", selectedPort);
 
-            // Reset status while checking connection
+            // Reset status and hide any previous error
             const sensorStatus = document.getElementById("sensorStatus");
-            sensorStatus.innerText = "Status: Checking...";
-            sensorStatus.style.color = "black";
+            sensorStatus.innerText = "Disconnected";
+            sensorStatus.style.color = "red";
+        });
+
+        let isRecording = false;
+
+        document.getElementById("recordBtn").addEventListener("click", () => {
+          isRecording = !isRecording;
+
+            // Emit event to server
+            socket.emit("toggleRecord", isRecording);
+
+            // Update button UI
+            recordBtn.innerText = isRecording ? "◼" : "⬤";
+            recordBtn.classList.toggle("recording", isRecording);
         });
 
         // Gauge options
-        var opts = {
+        const baseOpts = {
             angle: -0.15,
             lineWidth: 0.2,
             radiusScale: 1,
-            limitMax: false,
-            limitMin: false,
+            limitMax: true,
+            limitMin: true,
             highDpiSupport: true,
             colorStart: '#3CD46E',
             colorStop: '#59F161',
-            staticLabels: {
-                font: "10px sans-serif",
-                labels: [0, 20, 40, 60, 80, 100],
-                color: "#000000",
-                fractionDigits: 0
-            },
             pointer: {
-                length: 0.6, // Relative to gauge radius
-                strokeWidth: 0.025, // Thickness
+                length: 0.6,
+                strokeWidth: 0.025,
                 color: '#000000'
             },
             renderTicks: {
-                divisions: 5,
                 divWidth: 1,
                 divLength: 0.7,
                 divColor: '#666666',
@@ -133,36 +167,83 @@
                 subLength: 0.5,
                 subWidth: 0.6,
                 subColor: '#666666'
+            }
+        };
+
+        // Gauge 1: 0–80
+        const opts1 = {
+            ...baseOpts,
+            staticLabels: {
+                font: "10px sans-serif",
+                labels: [0, 20, 40, 60, 80],
+                color: "#000000",
+                fractionDigits: 0
             },
+            renderTicks: {
+                ...baseOpts.renderTicks,
+                divisions: 4
+            }
+        };
+
+        // Gauge 2: 0–250
+        const opts2 = {
+            ...baseOpts,
+            staticLabels: {
+                font: "10px sans-serif",
+                labels: [0, 50, 100, 150, 200, 250],
+                color: "#000000",
+                fractionDigits: 0
+            },
+            renderTicks: {
+                ...baseOpts.renderTicks,
+                divisions: 5
+            }
+        };
+
+        // Gauge 3: 0–60
+        const opts3 = {
+            ...baseOpts,
+            staticLabels: {
+                font: "10px sans-serif",
+                labels: [0, 15, 30, 45, 60],
+                color: "#000000",
+                fractionDigits: 0
+            },
+            renderTicks: {
+                ...baseOpts.renderTicks,
+                divisions: 4
+            }
         };
 
         // Initialize gauges
-        var gauge1 = new Gauge(document.getElementById("gauge1")).setOptions(opts);
-        gauge1.maxValue = 100;
+        var gauge1 = new Gauge(document.getElementById("gauge1")).setOptions(opts1);
+        gauge1.maxValue = 80;
         gauge1.set(0);
 
-        var gauge2 = new Gauge(document.getElementById("gauge2")).setOptions(opts);
-        gauge2.maxValue = 100;
-        gauge2.set(50);
+        var gauge2 = new Gauge(document.getElementById("gauge2")).setOptions(opts2);
+        gauge2.maxValue = 250;
+        gauge2.set(0);
 
-        var gauge3 = new Gauge(document.getElementById("gauge3")).setOptions(opts);
-        gauge3.maxValue = 100;
-        gauge3.set(15);
+        var gauge3 = new Gauge(document.getElementById("gauge3")).setOptions(opts3);
+        gauge3.maxValue = 60;
+        gauge3.set(0);
         gauge3.options
 
         var sensorStatus = document.getElementById("sensorStatus");
 
         // Listen for real-time DAQ data
         socket.on("daqData", (data) => {
+            const { voltage, current, temperature, sensorConnected } = data;
+
             // Update gauge values
-            gauge1.set(data.temperature);
-            gauge2.set(data.voltage);
-            gauge3.set(data.measurement3);
+            gauge1.set(voltage);
+            gauge2.set(current);
+            gauge3.set(temperature);
 
             // Update gauge labels
-            document.getElementById("label1").innerText = `Temperature: ${data.temperature.toFixed(2)} C`;
-            document.getElementById("label2").innerText = `Voltage: ${data.voltage.toFixed(2)} V`;
-            document.getElementById("label3").innerText = `Measurement 3: ${data.measurement3.toFixed(2)}`;
+            document.querySelector("#label1 .labelValue").innerText = `${voltage} V`;
+            document.querySelector("#label2 .labelValue").innerText = `${current} A`;
+            document.querySelector("#label3 .labelValue").innerText = `${temperature} °C`;
 
             // Update sensor status
             const isConnected = data.sensorConnected;
@@ -170,8 +251,8 @@
             const newColor = isConnected ? "green" : "red";
 
             // Only update if something changed
-            if (sensorStatus.innerText !== `Status: ${newStatus}`) {
-                sensorStatus.innerText = `Status: ${newStatus}`;
+            if (sensorStatus.innerText !== `${newStatus}`) {
+                sensorStatus.innerText = `${newStatus}`;
                 sensorStatus.style.color = newColor;
             }
 
@@ -185,6 +266,30 @@
                 connectBtn.disabled = false;
                 connectBtn.innerText = "Connect";
             }
+
+            if (!isConnected) {
+                gauge1.set(0);
+                gauge2.set(0);
+                gauge3.set(0);
+            }
+
+            const recordBtn = document.getElementById("recordBtn");
+            recordBtn.disabled = !sensorConnected;
+        });
+
+        socket.on("recordStatus", ({ message }) => {
+            const statusMsg = document.getElementById("recordStatusMessage");
+            statusMsg.innerText = message;
+
+            statusMsg.classList.add("show");
+
+            setTimeout(() => {
+              statusMsg.classList.remove("show");
+            }, 2000);
+        });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            recordBtn.disabled = true;
         });
     </script>
 </body>
