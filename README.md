@@ -1,6 +1,6 @@
 # EV Data Monitor
 
-A **web-based interface** for real-time monitoring and visualization of electric vehicle (EV) data, developed during an internship at the International Hellenic University.  
+A **web-based interface** for real-time monitoring and visualization of electric vehicle (EV) data.  
 This project reads **voltage**, **current**, and **temperature** data from an EV via a serial port, displays it on a web dashboard, and optionally records it to CSV files.
 
 ---
